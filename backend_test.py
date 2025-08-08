@@ -330,6 +330,10 @@ class BackendTester:
         # Test 4: Results endpoint
         result_data = self.test_results_endpoint(result_id)
         
+        # Display listing data for verification
+        if result_data:
+            self.display_listing_data(result_data)
+        
         # Test 5: All results endpoint
         all_results_success = self.test_all_results_endpoint()
         
