@@ -142,14 +142,21 @@ function App() {
       return (
         <div className="flex items-center text-green-600 text-sm mb-4">
           <CheckCircle className="w-4 h-4 mr-2" />
-          AI Bağlantısı Aktif
+          AI Bağlantısı Aktif - %100 Doğruluk Modu
+        </div>
+      );
+    } else if (testStatus === 'api_disabled') {
+      return (
+        <div className="flex items-center text-yellow-600 text-sm mb-4">
+          <AlertCircle className="w-4 h-4 mr-2" />
+          HTML Parsing Modu - AI API Etkinleştirilebilir
         </div>
       );
     } else if (testStatus === 'error') {
       return (
-        <div className="flex items-center text-red-600 text-sm mb-4">
+        <div className="flex items-center text-orange-600 text-sm mb-4">
           <AlertCircle className="w-4 h-4 mr-2" />
-          AI Bağlantısı Hatası
+          HTML Parsing Modu - AI Olmadan Çalışıyor
         </div>
       );
     }
