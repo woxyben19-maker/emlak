@@ -95,11 +95,11 @@ class BackendTester:
             return False
     
     def test_scraping_endpoint(self):
-        """Test 3: Test scraping endpoint with sample URL"""
+        """Test 3: Test scraping endpoint with specific parameters from user request"""
         try:
             scraping_data = {
                 "url": "https://www.sahibinden.com/satilik-daire/istanbul",
-                "month": 7,
+                "month": 8,
                 "year": 2025
             }
             
