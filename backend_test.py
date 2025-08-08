@@ -296,6 +296,8 @@ class BackendTester:
             print(f"\n   ... and {len(listings) - 3} more listings")
         
         print("=" * 80)
+    
+    def test_error_handling(self):
         """Test 8: Test error handling"""
         try:
             # Test invalid result ID
