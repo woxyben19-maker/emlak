@@ -268,7 +268,34 @@ class BackendTester:
             self.log_test("PDF Export", False, f"Request error: {str(e)}")
             return False
     
-    def test_error_handling(self):
+    def display_listing_data(self, result_data):
+        """Display actual listing data for verification"""
+        if not result_data or not result_data.get("listings"):
+            print("\n📋 No listing data to display")
+            return
+            
+        listings = result_data.get("listings", [])
+        print(f"\n📋 LISTING DATA VERIFICATION ({len(listings)} listings found)")
+        print("=" * 80)
+        
+        for i, listing in enumerate(listings[:3], 1):  # Show first 3 listings
+            print(f"\n🏠 Listing {i}:")
+            print(f"   İlan Sahibi: {listing.get('owner_name', 'N/A')}")
+            print(f"   Telefon: {listing.get('contact_number', 'N/A')}")
+            print(f"   Oda Sayısı: {listing.get('room_count', 'N/A')}")
+            print(f"   Net Alan: {listing.get('net_area', 'N/A')}")
+            print(f"   Site İçi: {listing.get('is_in_complex', 'N/A')}")
+            print(f"   Site Adı: {listing.get('complex_name', 'N/A')}")
+            print(f"   Isıtma: {listing.get('heating_type', 'N/A')}")
+            print(f"   Otopark: {listing.get('parking_type', 'N/A')}")
+            print(f"   Krediye Uygun: {listing.get('credit_suitable', 'N/A')}")
+            print(f"   Fiyat: {listing.get('price', 'N/A')}")
+            print(f"   İlan Tarihi: {listing.get('listing_date', 'N/A')}")
+        
+        if len(listings) > 3:
+            print(f"\n   ... and {len(listings) - 3} more listings")
+        
+        print("=" * 80)
         """Test 8: Test error handling"""
         try:
             # Test invalid result ID
