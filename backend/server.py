@@ -168,72 +168,184 @@ async def scrape_sahibinden_listings(url: str, target_month: int, target_year: i
     return listings
 
 async def process_listing_with_ai(listing: PropertyListing) -> PropertyListing:
-    """Process a single listing using Gemini AI"""
+    """Process a single listing using Gemini AI or fallback to HTML parsing"""
     try:
-        # Initialize Gemini chat
-        chat = await init_gemini_chat()
+        # Check if Gemini API is available
+        if GEMINI_API_KEY:
+            try:
+                # Initialize Gemini chat
+                chat = await init_gemini_chat()
+                
+                # Parse HTML content with BeautifulSoup
+                soup = BeautifulSoup(listing.raw_html, 'html.parser')
+                
+                # Extract text content
+                text_content = soup.get_text()[:3000]  # Limit text length
+                
+                # Create prompt for AI
+                prompt = f"""
+                Lütfen bu emlak ilanı HTML içeriğinden bilgileri çıkart:
+                
+                {text_content}
+                
+                JSON formatında şu bilgileri ver:
+                {{
+                    "owner_name": "",
+                    "contact_number": "",
+                    "room_count": "",
+                    "net_area": "",
+                    "is_in_complex": "",
+                    "complex_name": "",
+                    "heating_type": "",
+                    "parking_type": "",
+                    "credit_suitable": "",
+                    "price": ""
+                }}
+                """
+                
+                user_message = UserMessage(text=prompt)
+                response = await chat.send_message(user_message)
+                
+                # Parse AI response
+                try:
+                    # Extract JSON from response
+                    response_text = response.strip()
+                    if '```json' in response_text:
+                        json_start = response_text.find('{')
+                        json_end = response_text.rfind('}') + 1
+                        json_text = response_text[json_start:json_end]
+                    else:
+                        json_text = response_text
+                        
+                    ai_data = json.loads(json_text)
+                    
+                    # Update listing with AI extracted data
+                    listing.owner_name = ai_data.get('owner_name', '')
+                    listing.contact_number = ai_data.get('contact_number', '')
+                    listing.room_count = ai_data.get('room_count', '')
+                    listing.net_area = ai_data.get('net_area', '')
+                    listing.is_in_complex = ai_data.get('is_in_complex', '')
+                    listing.complex_name = ai_data.get('complex_name', '')
+                    listing.heating_type = ai_data.get('heating_type', '')
+                    listing.parking_type = ai_data.get('parking_type', '')
+                    listing.credit_suitable = ai_data.get('credit_suitable', '')
+                    listing.price = ai_data.get('price', '')
+                    
+                    return listing
+                    
+                except json.JSONDecodeError as e:
+                    logging.error(f"JSON parse error: {e}")
+                    logging.error(f"AI Response: {response}")
+                    # Fall back to HTML parsing
+                    
+            except Exception as e:
+                logging.error(f"Error processing listing with AI: {e}")
+                # Fall back to HTML parsing
         
-        # Parse HTML content with BeautifulSoup
+        # Fallback: HTML parsing without AI
         soup = BeautifulSoup(listing.raw_html, 'html.parser')
         
-        # Extract text content
-        text_content = soup.get_text()[:3000]  # Limit text length
+        # Try to extract basic information with simple HTML parsing
+        # This is a basic implementation - can be improved
+        text_content = soup.get_text()
         
-        # Create prompt for AI
-        prompt = f"""
-        Lütfen bu emlak ilanı HTML içeriğinden bilgileri çıkart:
+        # Simple pattern matching for common Turkish real estate terms
+        import re
         
-        {text_content}
+        # Extract price
+        price_patterns = [
+            r'(\d{1,3}(?:\.\d{3})*)\s*TL',
+            r'(\d{1,3}(?:\.\d{3})*)\s*₺',
+            r'Fiyat[:\s]*(\d{1,3}(?:\.\d{3})*)',
+        ]
+        for pattern in price_patterns:
+            match = re.search(pattern, text_content)
+            if match:
+                listing.price = match.group(1) + " TL"
+                break
         
-        JSON formatında şu bilgileri ver:
-        {{
-            "owner_name": "",
-            "contact_number": "",
-            "room_count": "",
-            "net_area": "",
-            "is_in_complex": "",
-            "complex_name": "",
-            "heating_type": "",
-            "parking_type": "",
-            "credit_suitable": "",
-            "price": ""
-        }}
-        """
+        # Extract room count
+        room_patterns = [
+            r'(\d+\+\d+)',  # e.g., 3+1, 2+1
+            r'(\d+)\s*oda',
+            r'(\d+)\s*yatak\s*odası'
+        ]
+        for pattern in room_patterns:
+            match = re.search(pattern, text_content)
+            if match:
+                listing.room_count = match.group(1)
+                break
         
-        user_message = UserMessage(text=prompt)
-        response = await chat.send_message(user_message)
+        # Extract area
+        area_patterns = [
+            r'(\d+)\s*m²',
+            r'(\d+)\s*metrekare',
+            r'Brüt[:\s]*(\d+)',
+            r'Net[:\s]*(\d+)'
+        ]
+        for pattern in area_patterns:
+            match = re.search(pattern, text_content)
+            if match:
+                listing.net_area = match.group(1) + " m²"
+                break
         
-        # Parse AI response
-        try:
-            # Extract JSON from response
-            response_text = response.strip()
-            if '```json' in response_text:
-                json_start = response_text.find('{')
-                json_end = response_text.rfind('}') + 1
-                json_text = response_text[json_start:json_end]
-            else:
-                json_text = response_text
-                
-            ai_data = json.loads(json_text)
-            
-            # Update listing with AI extracted data
-            listing.owner_name = ai_data.get('owner_name', '')
-            listing.contact_number = ai_data.get('contact_number', '')
-            listing.room_count = ai_data.get('room_count', '')
-            listing.net_area = ai_data.get('net_area', '')
-            listing.is_in_complex = ai_data.get('is_in_complex', '')
-            listing.complex_name = ai_data.get('complex_name', '')
-            listing.heating_type = ai_data.get('heating_type', '')
-            listing.parking_type = ai_data.get('parking_type', '')
-            listing.credit_suitable = ai_data.get('credit_suitable', '')
-            listing.price = ai_data.get('price', '')
-            
-        except json.JSONDecodeError as e:
-            logging.error(f"JSON parse error: {e}")
-            logging.error(f"AI Response: {response}")
+        # Extract phone number
+        phone_patterns = [
+            r'(\d{3})\s*(\d{3})\s*(\d{2})\s*(\d{2})',
+            r'0(\d{3})\s*(\d{3})\s*(\d{4})'
+        ]
+        for pattern in phone_patterns:
+            match = re.search(pattern, text_content)
+            if match:
+                if len(match.groups()) == 4:
+                    listing.contact_number = f"{match.group(1)} {match.group(2)} {match.group(3)} {match.group(4)}"
+                else:
+                    listing.contact_number = f"0{match.group(1)} {match.group(2)} {match.group(3)}"
+                break
+        
+        # Extract heating type
+        if 'kombi' in text_content.lower():
+            listing.heating_type = 'Kombi'
+        elif 'klima' in text_content.lower():
+            listing.heating_type = 'Klima'
+        elif 'merkezi' in text_content.lower():
+            listing.heating_type = 'Merkezi Isıtma'
+        elif 'doğalgaz' in text_content.lower():
+            listing.heating_type = 'Doğalgaz'
+        
+        # Extract parking info
+        if 'kapalı otopark' in text_content.lower():
+            listing.parking_type = 'Kapalı'
+        elif 'açık otopark' in text_content.lower():
+            listing.parking_type = 'Açık'
+        elif 'otopark' in text_content.lower():
+            listing.parking_type = 'Var'
+        else:
+            listing.parking_type = 'Yok'
+        
+        # Extract site info
+        if 'site' in text_content.lower() or 'kompleks' in text_content.lower():
+            listing.is_in_complex = 'Evet'
+            # Try to extract site name
+            site_match = re.search(r'([A-ZÜĞŞÖÇI][a-züğşıöç\s]+(?:Site|Sitesi|Kompleks))', text_content)
+            if site_match:
+                listing.complex_name = site_match.group(1)
+        else:
+            listing.is_in_complex = 'Hayır'
+        
+        # Extract credit suitability
+        if 'krediye uygun' in text_content.lower():
+            listing.credit_suitable = 'Evet'
+        elif 'kredi' in text_content.lower():
+            listing.credit_suitable = 'Belirtilmemiş'
+        else:
+            listing.credit_suitable = 'Hayır'
+        
+        # Set placeholder for owner name (requires AI or more complex parsing)
+        listing.owner_name = 'Tespit Edilemedi (AI Gerekli)'
     
     except Exception as e:
-        logging.error(f"Error processing listing with AI: {e}")
+        logging.error(f"Error processing listing: {e}")
     
     return listing
 
