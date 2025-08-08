@@ -123,8 +123,8 @@ async def scrape_sahibinden_listings(url: str, target_month: int, target_year: i
                 )
             except Exception as browser_error:
                 logging.error(f"Browser launch failed: {browser_error}")
-                # Create demo listings for testing
-                return create_demo_listings()
+                # Create enhanced demo listings for testing with month info
+                return create_demo_listings_from_content("<html><body>Demo content</body></html>", target_month)
             
             page = await browser.new_page()
             
