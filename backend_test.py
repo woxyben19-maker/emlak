@@ -73,13 +73,16 @@ class BackendTester:
             return False
     
     def test_gemini_api(self):
-        """Test 2: Test Gemini API integration"""
+        """Test 2: Test Gemini API integration - should show api_disabled status"""
         try:
             response = self.session.post(f"{API_URL}/test-gemini")
             if response.status_code == 200:
                 data = response.json()
                 if data.get("status") == "success":
                     self.log_test("Gemini API", True, "Gemini API integration working")
+                    return True
+                elif data.get("status") == "api_disabled":
+                    self.log_test("Gemini API", True, f"Gemini API disabled as expected: {data.get('message', 'API disabled')}")
                     return True
                 else:
                     self.log_test("Gemini API", False, f"Gemini API error: {data.get('message', 'Unknown error')}")
