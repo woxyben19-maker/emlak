@@ -543,11 +543,21 @@ async def export_pdf(result_id: str):
 async def test_gemini():
     """Test Gemini API connection"""
     try:
+        if not GEMINI_API_KEY:
+            return {"status": "error", "message": "Gemini API key not configured"}
+            
         chat = await init_gemini_chat()
         test_message = UserMessage(text="Merhaba, test mesajı. Sadece 'Test başarılı!' yaz.")
         response = await chat.send_message(test_message)
         return {"status": "success", "response": response}
     except Exception as e:
+        error_msg = str(e)
+        if "SERVICE_DISABLED" in error_msg or "PERMISSION_DENIED" in error_msg:
+            return {
+                "status": "api_disabled", 
+                "message": "Google Gemini API etkinleştirilmesi gerekiyor. Sistem HTML parsing ile çalışacak.",
+                "fallback": "HTML parsing aktif"
+            }
         return {"status": "error", "message": str(e)}
 
 # Include the router in the main app
