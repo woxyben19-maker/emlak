@@ -38,7 +38,13 @@ function App() {
   const testGeminiConnection = async () => {
     try {
       const response = await axios.post(`${API}/test-gemini`);
-      setTestStatus(response.data.status === 'success' ? 'success' : 'error');
+      if (response.data.status === 'success') {
+        setTestStatus('success');
+      } else if (response.data.status === 'api_disabled') {
+        setTestStatus('api_disabled');
+      } else {
+        setTestStatus('error');
+      }
     } catch (error) {
       console.error('Gemini test failed:', error);
       setTestStatus('error');
