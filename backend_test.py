@@ -120,31 +120,79 @@ class BackendTester:
             return None
     
     def test_results_endpoint(self, result_id):
-        """Test 4: Check if scraping result can be retrieved"""
+        """Test 4: Check if scraping result can be retrieved and verify listing data"""
         if not result_id:
             self.log_test("Results Endpoint", False, "No result ID to test with")
             return None
             
         try:
-            # Wait a bit for processing to start
-            time.sleep(2)
+            # Wait for processing to complete (up to 30 seconds)
+            max_wait = 30
+            wait_time = 0
             
-            response = self.session.get(f"{API_URL}/results/{result_id}")
-            if response.status_code == 200:
-                data = response.json()
-                if "id" in data and data["id"] == result_id:
-                    status = data.get("status", "unknown")
-                    self.log_test("Results Endpoint", True, f"Result retrieved successfully, status: {status}")
-                    return data
-                else:
-                    self.log_test("Results Endpoint", False, "Result ID mismatch", data)
+            while wait_time < max_wait:
+                time.sleep(2)
+                wait_time += 2
+                
+                response = self.session.get(f"{API_URL}/results/{result_id}")
+                if response.status_code == 200:
+                    data = response.json()
+                    if "id" in data and data["id"] == result_id:
+                        status = data.get("status", "unknown")
+                        
+                        if status == "completed":
+                            # Verify listing data format
+                            listings = data.get("listings", [])
+                            if listings:
+                                sample_listing = listings[0]
+                                required_fields = ['owner_name', 'contact_number', 'room_count', 'net_area', 
+                                                 'is_in_complex', 'heating_type', 'parking_type', 
+                                                 'credit_suitable', 'price']
+                                
+                                missing_fields = []
+                                empty_fields = []
+                                
+                                for field in required_fields:
+                                    if field not in sample_listing:
+                                        missing_fields.append(field)
+                                    elif not sample_listing[field] or sample_listing[field].strip() == "":
+                                        empty_fields.append(field)
+                                
+                                if missing_fields:
+                                    self.log_test("Results Endpoint", False, f"Missing fields in listing: {missing_fields}")
+                                    return data
+                                elif empty_fields:
+                                    self.log_test("Results Endpoint", True, f"Result completed with some empty fields: {empty_fields}. Total listings: {len(listings)}")
+                                    return data
+                                else:
+                                    self.log_test("Results Endpoint", True, f"Result completed successfully with {len(listings)} properly formatted listings")
+                                    return data
+                            else:
+                                self.log_test("Results Endpoint", False, "No listings found in completed result")
+                                return data
+                        elif status == "error":
+                            self.log_test("Results Endpoint", False, f"Scraping failed with error: {data.get('error_message', 'Unknown error')}")
+                            return data
+                        elif status in ["processing", "scraping", "processing_ai"]:
+                            print(f"   Still processing... Status: {status} (waited {wait_time}s)")
+                            continue
+                        else:
+                            self.log_test("Results Endpoint", True, f"Result retrieved, status: {status}")
+                            return data
+                    else:
+                        self.log_test("Results Endpoint", False, "Result ID mismatch", data)
+                        return None
+                elif response.status_code == 404:
+                    self.log_test("Results Endpoint", False, "Result not found - possible database issue")
                     return None
-            elif response.status_code == 404:
-                self.log_test("Results Endpoint", False, "Result not found - possible database issue")
-                return None
-            else:
-                self.log_test("Results Endpoint", False, f"HTTP {response.status_code}", response.text)
-                return None
+                else:
+                    self.log_test("Results Endpoint", False, f"HTTP {response.status_code}", response.text)
+                    return None
+            
+            # Timeout reached
+            self.log_test("Results Endpoint", False, f"Processing timeout after {max_wait} seconds")
+            return None
+            
         except Exception as e:
             self.log_test("Results Endpoint", False, f"Request error: {str(e)}")
             return None
